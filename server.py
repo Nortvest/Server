@@ -1,8 +1,7 @@
 from Socket import Socket
 from SignIn import DataBasePassword
 import hashlib
-import loguru
-import rich
+from loguru import logger
 
 
 class TextColors:
@@ -15,7 +14,6 @@ class TextColors:
 
 class Server(Socket):
     """Класс сервера"""
-    __USER = list()
     __unauthorized_users = list()
     __name_users = dict()
 
@@ -24,11 +22,11 @@ class Server(Socket):
         self.socket.bind((ip, host))
         self.socket.setblocking(False)
         self.socket.listen()
-        print('Server is starting')
+        logger.success('Server is starting')
 
     async def __admin_send(self, data):
         """Отправка служебного сообщения"""
-        for user in self.__USER:
+        for user in self.__name_users.keys():
             await self.main_loop.sock_sendall(
                 user,
                 f'\r{TextColors.ENDC}{data.decode("utf-8")}\n'
@@ -39,7 +37,7 @@ class Server(Socket):
         """Отправка сообщения польвователям"""
         if not data:
             return
-        users_copy = self.__USER.copy()
+        users_copy = list(self.__name_users.keys())
         users_copy.remove(own_user)
         users_copy = tuple(set(users_copy) - set(self.__unauthorized_users))
         for user in users_copy:
@@ -50,13 +48,13 @@ class Server(Socket):
                 f'{TextColors.BOLD}{TextColors.WARNING}->{TextColors.ENDC}{TextColors.BOLD} '.encode('utf-8')
             )
 
-    async def listen(self, username=None):
+    async def listen_(self, username=None):
         """Прослушка клиента"""
         while True:
             data = await self.main_loop.sock_recv(username, 1024)
-            print(f'{self.__name_users[username]}: {data.decode("utf-8")}')
+            logger.info(f'{self.__name_users[username]}: {data.decode("utf-8")}')
             if not data:
-                self.__USER.remove(username)
+                self.__name_users.pop(username, None)
                 return
             if data.decode('utf-8').startswith('/'):
                 await self.__commands_handler(username, data.decode('utf-8')[1:])
@@ -75,10 +73,13 @@ class Server(Socket):
             await self.main_loop.sock_sendall(username, self.__registration(name, password).encode('utf-8'))
         elif command.startswith('auth'):
             _, name, password = command.split(':')
-            await self.main_loop.sock_sendall(username, self.__authorisation(name, password).encode('utf-8'))
+            ent = int(self.__authorisation(name, password))
+            await self.main_loop.sock_sendall(username, str(ent).encode('utf-8'))
+            if not ent:
+                await self.__commands_sing_in(username)
             self.__unauthorized_users.remove(username)
             self.__name_users[username] = name
-            await self.listen(username)
+            await self.listen_(username)
 
     @staticmethod
     def __registration(name, password):
@@ -105,8 +106,7 @@ class Server(Socket):
         """Присоединение нового пользователя"""
         while True:
             user, address = await self.main_loop.sock_accept(self.socket)
-            print(f'{address[0]}:{address[1]} Join the Channel')
-            self.__USER.append(user)
+            logger.success(f'{address[0]}:{address[1]} Join the Channel')
             self.__unauthorized_users.append(user)
             self.main_loop.create_task(self.__commands_sing_in(user))
 

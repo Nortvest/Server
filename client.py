@@ -2,6 +2,7 @@ from Socket import Socket
 import sys
 from aioconsole import ainput
 import asyncio
+import rich
 
 
 class TextColors:
@@ -18,7 +19,7 @@ class Client(Socket):
         self.socket.connect((ip, host))
         self.socket.setblocking(False)
 
-    async def listen(self, username=None):
+    async def listen_(self, username=None):
         """Прослушивание сервера"""
         while True:
             data = await self.main_loop.sock_recv(self.socket, 1024)
@@ -43,7 +44,8 @@ class Client(Socket):
                 request = await self.main_loop.sock_recv(self.socket, 1024)
                 request = int(request.decode('utf-8'))
                 if request:
-                    break
+                    await self.main_loop.sock_sendall(self.socket, f'1'.encode('utf-8'))
+                    return
                 else:
                     print('Login or Password is invalid\n')
 
@@ -51,7 +53,7 @@ class Client(Socket):
         """Авторизация на сервере"""
         await self.form_sing_in('Name: ', 'Password: ', 'auth')
         await asyncio.gather(self.main_loop.create_task(self.send_to_server()), self.main_loop.create_task(
-            self.listen()))
+            self.listen_()))
 
     async def registration(self):
         """Регистрация на сервере"""
