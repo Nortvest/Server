@@ -13,7 +13,7 @@ class Socket:
     def bind_connect(self, ip, host):
         raise NotImplementedError
 
-    async def listen_(self, username=None):
+    async def listening(self, username=None):
         raise NotImplementedError
 
     async def start_task(self):

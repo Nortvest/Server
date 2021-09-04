@@ -48,7 +48,7 @@ class Server(Socket):
                 f'{TextColors.BOLD}{TextColors.WARNING}->{TextColors.ENDC}{TextColors.BOLD} '.encode('utf-8')
             )
 
-    async def listen_(self, username=None):
+    async def listening(self, username=None):
         """Прослушка клиента"""
         while True:
             data = await self.main_loop.sock_recv(username, 1024)
@@ -72,12 +72,6 @@ class Server(Socket):
         prefix, name, password = command.split(':')
         return prefix, name, password
 
-    async def __form_auth(self, username, name, password):
-        await self.main_loop.sock_sendall(username, self.__authorisation(name, password).encode('utf-8'))
-        answer = await self.main_loop.sock_recv(username, 1024)
-        answer = int(answer.decode('utf-8'))
-        return answer
-
     @logger.catch()
     async def __commands_sing_in(self, username):
         """Обработчик команд sing in"""
@@ -86,17 +80,29 @@ class Server(Socket):
             return None
         prefix, name, password = command
         if prefix == 'reg':
-            await self.main_loop.sock_sendall(username, self.__registration(name, password).encode('utf-8'))
-            answer = await self.main_loop.sock_recv(username, 1024)
-            if int(answer.decode('utf-8')):
-                await self.__commands_sing_in(username)
+            await self.__command_reg(username, name, password)
         elif prefix == 'auth':
-            answer = await self.__form_auth(username, name, password)
-            if not answer:
-                name = await self.__repeat_auth(username)
-            self.__unauthorized_users.remove(username)
-            self.__name_users[username] = name
-            await self.listen_(username)
+            await self.__command_auth(username, name, password)
+
+    async def __command_reg(self, username, name, password):
+        await self.main_loop.sock_sendall(username, self.__registration(name, password).encode('utf-8'))
+        answer = await self.main_loop.sock_recv(username, 1024)
+        if int(answer.decode('utf-8')):
+            await self.__commands_sing_in(username)
+
+    async def __command_auth(self, username, name, password):
+        answer = await self.__form_auth(username, name, password)
+        if not answer:
+            name = await self.__repeat_auth(username)
+        self.__unauthorized_users.remove(username)
+        self.__name_users[username] = name
+        await self.listening(username)
+
+    async def __form_auth(self, username, name, password):
+        await self.main_loop.sock_sendall(username, self.__authorisation(name, password).encode('utf-8'))
+        answer = await self.main_loop.sock_recv(username, 1024)
+        answer = int(answer.decode('utf-8'))
+        return answer
 
     async def __repeat_auth(self, username):
         pnp = await self.__form_sing_in(username)
@@ -125,9 +131,6 @@ class Server(Socket):
         if hash_password and hash_password == hashlib.sha224(password.encode('utf-8')).hexdigest():
             return '1'  # Оба return в " для удобной последующей пересылке клиенту
         return '0'
-
-    async def send_logs(self, username=None):
-        pass
 
     async def __accept(self):
         """Присоединение нового пользователя"""

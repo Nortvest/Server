@@ -19,7 +19,7 @@ class Client(Socket):
         self.socket.connect((ip, host))
         self.socket.setblocking(False)
 
-    async def listen_(self, username=None):
+    async def listening(self, username=None):
         """Прослушивание сервера"""
         while True:
             data = await self.main_loop.sock_recv(self.socket, 1024)
@@ -54,11 +54,12 @@ class Client(Socket):
         """Авторизация на сервере"""
         await self.form_sing_in('Name: ', 'Password: ', 'auth')
         await asyncio.gather(self.main_loop.create_task(self.send_to_server()),
-                             self.main_loop.create_task(self.listen_()))
+                             self.main_loop.create_task(self.listening()))
 
     async def registration(self):
         """Регистрация на сервере"""
         await self.form_sing_in('Create name: ', 'Create password: ', 'reg')
+        await self.authorisation()
 
     async def start_task(self):
         """Запуск"""
@@ -70,7 +71,6 @@ class Client(Socket):
                 await self.authorisation()
             elif data == '2':
                 await self.registration()
-                await self.authorisation()
             else:
                 print('You can write "1" or "2"', end='\n\n')
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     try:
         client.bind_connect('127.0.0.1', 9999)
         client.run()
-    except Exception as ex:
+    except (Exception, KeyboardInterrupt)as ex:
         print(ex)
         print('\nBye!')
         sys.exit()
