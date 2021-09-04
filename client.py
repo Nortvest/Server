@@ -47,18 +47,18 @@ class Client(Socket):
                     await self.main_loop.sock_sendall(self.socket, f'1'.encode('utf-8'))
                     return
                 else:
+                    await self.main_loop.sock_sendall(self.socket, f'0'.encode('utf-8'))
                     print('Login or Password is invalid\n')
 
     async def authorisation(self):
         """Авторизация на сервере"""
         await self.form_sing_in('Name: ', 'Password: ', 'auth')
-        await asyncio.gather(self.main_loop.create_task(self.send_to_server()), self.main_loop.create_task(
-            self.listen_()))
+        await asyncio.gather(self.main_loop.create_task(self.send_to_server()),
+                             self.main_loop.create_task(self.listen_()))
 
     async def registration(self):
         """Регистрация на сервере"""
         await self.form_sing_in('Create name: ', 'Create password: ', 'reg')
-        await self.authorisation()
 
     async def start_task(self):
         """Запуск"""
@@ -68,10 +68,9 @@ class Client(Socket):
             data = await ainput()
             if data == '1':
                 await self.authorisation()
-                break
             elif data == '2':
                 await self.registration()
-                break
+                await self.authorisation()
             else:
                 print('You can write "1" or "2"', end='\n\n')
 

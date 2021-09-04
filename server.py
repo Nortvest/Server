@@ -64,22 +64,49 @@ class Server(Socket):
     async def __commands_handler(self, username, command):
         pass
 
-    async def __commands_sing_in(self, username):
-        """Обработчик команд sing in"""
+    async def __form_sing_in(self, username):
         command = await self.main_loop.sock_recv(username, 1024)
         command = command.decode('utf-8')[1:]
-        if command.startswith('reg'):
-            _, name, password = command.split(':')
+        if not command:
+            return None
+        prefix, name, password = command.split(':')
+        return prefix, name, password
+
+    async def __form_auth(self, username, name, password):
+        await self.main_loop.sock_sendall(username, self.__authorisation(name, password).encode('utf-8'))
+        answer = await self.main_loop.sock_recv(username, 1024)
+        answer = int(answer.decode('utf-8'))
+        return answer
+
+    @logger.catch()
+    async def __commands_sing_in(self, username):
+        """Обработчик команд sing in"""
+        command = await self.__form_sing_in(username)
+        if command is None:
+            return None
+        prefix, name, password = command
+        if prefix == 'reg':
             await self.main_loop.sock_sendall(username, self.__registration(name, password).encode('utf-8'))
-        elif command.startswith('auth'):
-            _, name, password = command.split(':')
-            ent = int(self.__authorisation(name, password))
-            await self.main_loop.sock_sendall(username, str(ent).encode('utf-8'))
-            if not ent:
+            answer = await self.main_loop.sock_recv(username, 1024)
+            if int(answer.decode('utf-8')):
                 await self.__commands_sing_in(username)
+        elif prefix == 'auth':
+            answer = await self.__form_auth(username, name, password)
+            if not answer:
+                name = await self.__repeat_auth(username)
             self.__unauthorized_users.remove(username)
             self.__name_users[username] = name
             await self.listen_(username)
+
+    async def __repeat_auth(self, username):
+        pnp = await self.__form_sing_in(username)
+        if pnp is None:
+            return None
+        _, name, password = pnp
+        answer = await self.__form_auth(username, name, password)
+        if not answer:
+            name = await self.__repeat_auth(username)
+        return name
 
     @staticmethod
     def __registration(name, password):
