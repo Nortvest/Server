@@ -1,12 +1,11 @@
-import socket
-from socket import SOL_SOCKET, SO_REUSEADDR
+from socket import SOL_SOCKET, SO_REUSEADDR, AF_INET, SOCK_STREAM, socket, SHUT_RD
 import asyncio
 
 
 class Socket:
     """Класс-шаблон для сервера и клтента"""
     def __init__(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.main_loop = asyncio.get_event_loop()
 

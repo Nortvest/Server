@@ -49,6 +49,7 @@ class Client(Socket):
                 else:
                     await self.main_loop.sock_sendall(self.socket, f'0'.encode('utf-8'))
                     print('Login or Password is invalid\n')
+            print()
 
     async def authorisation(self):
         """Авторизация на сервере"""

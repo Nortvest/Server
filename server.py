@@ -50,12 +50,14 @@ class Server(Socket):
 
     async def listening(self, username=None):
         """Прослушка клиента"""
+        logger.success(f'"{self.__name_users[username]}" Join the Channel')
         while True:
             data = await self.main_loop.sock_recv(username, 1024)
-            logger.info(f'{self.__name_users[username]}: {data.decode("utf-8")}')
             if not data:
+                logger.success(f'"{self.__name_users[username]}" Left the Channel')
                 self.__name_users.pop(username, None)
                 return
+            logger.info(f'{self.__name_users[username]}: {data.decode("utf-8")}')
             if data.decode('utf-8').startswith('/'):
                 await self.__commands_handler(username, data.decode('utf-8')[1:])
             else:
@@ -136,7 +138,7 @@ class Server(Socket):
         """Присоединение нового пользователя"""
         while True:
             user, address = await self.main_loop.sock_accept(self.socket)
-            logger.success(f'{address[0]}:{address[1]} Join the Channel')
+            logger.success(f'{address[0]}:{address[1]} Enters the System')
             self.__unauthorized_users.append(user)
             self.main_loop.create_task(self.__commands_sing_in(user))
 
